@@ -1,0 +1,8 @@
+.env
+*.db
+__pycache__/
+.venv/
+.pytest_cache/
+# internal planning docs: local only (public repo)
+*Spec.md
+Ready for review.txt

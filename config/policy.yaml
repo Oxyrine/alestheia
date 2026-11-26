@@ -1,0 +1,20 @@
+# Supplier-only. Never sent to the LLM and never rendered on the buyer page.
+diag_threshold: 0.70
+pay_auto_post_threshold: 0.95
+business_hours: {days: [Mon, Tue, Wed, Thu, Fri, Sat], start: "10:00", end: "18:00", tz: Asia/Kolkata}
+weekly_contact_cap: 2
+silent_after_days: 14
+safe_pause_days: 7
+promise_grace_days: 2
+reminder_window_days: 2            # "remind only near the promised date"
+dispute_response_days: 5
+payment_report_verify_days: 5      # a reported payment must show up in bank/webhook within this window
+limits:
+  max_instalments: 3
+  max_tenure_days: 60
+  min_upfront_pct: 25
+  max_discount_pct: 0
+  forbidden_concessions: [late_fee_waiver, interest_waiver, credit_note_without_approval]
+tds:
+  standard_rates_bp: [10, 100, 200, 1000]   # 0.1% goods; 1%/2% contract work; 2% technical; 10% professional
+  tolerance_paise_per_invoice: 100          # TDS is rounded to the rupee per invoice
