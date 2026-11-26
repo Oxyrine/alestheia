@@ -228,3 +228,15 @@ class CaseBundle(_Model):
     payments: list[Payment] = []
     promise: Promise | None = None
     state: State | None = None         # previous state, None for a new case
+
+
+def fmt_inr(paise: int) -> str:
+    """Indian digit grouping: ₹4,44,860 (paise shown only when non-zero)."""
+    sign, paise = ("-" if paise < 0 else ""), abs(paise)
+    rupees, rest = divmod(paise, 100)
+    digits = str(rupees)
+    head, tail = digits[:-3], digits[-3:]
+    groups = []
+    while head:
+        head, groups = head[:-2], [head[-2:], *groups]
+    return f"{sign}₹{','.join([*groups, tail])}" + (f".{rest:02d}" if rest else "")
