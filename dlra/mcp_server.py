@@ -1,4 +1,4 @@
-"""MCP tools for the supplier's Claude (the Ops relay path). Talks to the API over HTTP.
+"""MCP tools for the supplier's Claude. Talks to the API over HTTP.
 
 Env: DLRA_API_URL (default http://127.0.0.1:8000), OPS_TOKEN.
 """

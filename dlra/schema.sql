@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS cards (
   evidence_ids TEXT DEFAULT '[]', payload TEXT DEFAULT '{}',
   status TEXT NOT NULL DEFAULT 'open'
     CHECK (status IN ('open', 'approved', 'rejected', 'changes_requested')),
-  decided_by TEXT, decided_at TEXT, note TEXT, ops_ref TEXT
+  decided_by TEXT, decided_at TEXT, note TEXT
 );
 
 CREATE TABLE IF NOT EXISTS decisions (

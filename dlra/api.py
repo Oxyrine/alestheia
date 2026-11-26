@@ -1,4 +1,4 @@
-"""The supplier-side JSON API. The MCP server and the Ops relay use it: one write path.
+"""The supplier-side JSON API. The MCP server uses it too: one write path.
 
 Every route needs `Authorization: Bearer $OPS_TOKEN`. With no token configured, nothing is served.
 The web app includes `build_router(...)`; `create_app` serves it on its own.
