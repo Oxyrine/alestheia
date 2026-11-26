@@ -41,3 +41,9 @@ the API refuses every request.
 Where the conduct rules would block a reply that resolves the thing that caused them, the engine allows
 only that reply: a bank-reference request after a reported payment, and dispute messages during a dispute.
 Opt-out and a human pause block everything.
+
+## Deploy
+
+`render.yaml` describes the Render web service. It serves the supplier API over the demo cases with scripted
+diagnoses and sends no mail. `/healthz` is public; everything under `/api` needs `OPS_TOKEN`. The database is
+rebuilt on every boot.

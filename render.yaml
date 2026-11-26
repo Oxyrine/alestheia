@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: dlra
+    runtime: python
+    plan: free
+    branch: main
+    buildCommand: uv sync --frozen --no-dev
+    startCommand: uv run --no-sync uvicorn dlra.serve:create_app --factory --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: OPS_TOKEN
+        generateValue: true
+      - key: MAIL_MODE
+        value: log

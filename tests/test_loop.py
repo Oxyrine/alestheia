@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from dlra import api, events, loader, mailer, outbox, scheduler, service
+from dlra import api, events, loader, mailer, outbox, scheduler, serve, service
 from dlra.db import connect
 from dlra.models import Diagnosis, State
 from dlra.policy import load_policy
@@ -446,3 +446,19 @@ def test_the_scheduler_registers_single_instance_jobs(tmp_path):
         assert all(j.max_instances == 1 and j.coalesce for j in jobs.get_jobs())
     finally:
         jobs.shutdown(wait=False)
+
+
+def test_the_deployed_app_boots_with_the_demo_and_stays_locked(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPS_TOKEN", "t0ken")
+    with TestClient(serve.create_app(str(tmp_path / "boot.db"))) as http:
+        assert http.get("/healthz").json()["ok"]
+        assert http.get("/api/cases").status_code == 401
+        assert len(http.get("/api/cases", headers=AUTH).json()) == 6
+
+
+def test_boot_refuses_to_delete_anything_but_a_database(tmp_path):
+    keep = tmp_path / "notes.txt"
+    keep.write_text("keep me")
+    with pytest.raises(ValueError):
+        serve.create_app(str(keep))
+    assert keep.exists()
