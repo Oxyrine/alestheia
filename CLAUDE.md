@@ -7,6 +7,7 @@ uv sync
 uv run pytest -q
 uvx ruff check dlra tests
 uv run python -m dlra.cli case.json     # {"bundle": CaseBundle, "diagnosis": Diagnosis, "now": ISO+offset}
+uv run python -m scripts.replay_demo    # six demo cases end to end (scripted diagnosis, no mail)
 ```
 
 ## Lanes
@@ -16,6 +17,17 @@ uv run python -m dlra.cli case.json     # {"bundle": CaseBundle, "diagnosis": Di
 - B (intelligence, surfaces): `llm.py extract.py diagnose.py draft.py prompts/ eval/ web/` and integrations.
 - C (data, content): `data/demo/`, holdout set, CSS polish, README prose, video. C never edits `rules.py`,
   `policy.py` or `prompts/`.
+
+## Plugging in (lanes B and C)
+
+- Diagnosis: pass `propose(bundle) -> Diagnosis` in `service.Deps`. Drafting: `draft(intent, bundle, facts) ->
+  (subject, body, facts_text)`, replacing `engine.stub_draft`.
+- Extraction and the buyer page write evidence through `service.record_input` and payments through
+  `service.record_payment`, then call `service.dispatch`. The evidence field contract is at the top of
+  `dlra/loader.py`. Never store an ungrounded extraction under those field names.
+- Web: include `api.build_router(db_path, deps)`; start jobs with `scheduler.start(db_path, deps, mailer.send)`.
+  Supplier decisions go through `service.decide_card`.
+- `scripts/demo_world.py` is a stand-in for `data/demo/` and `diagnose.py`.
 
 ## Invariants
 

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "dlra": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "dlra.mcp_server"],
+      "env": { "DLRA_API_URL": "${DLRA_API_URL:-http://127.0.0.1:8000}", "OPS_TOKEN": "${OPS_TOKEN}" }
+    }
+  }
+}

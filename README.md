@@ -9,6 +9,7 @@ Work in progress. All data is synthetic.
 ```
 uv sync
 uv run pytest -q
+uv run python -m scripts.replay_demo     # the six demo cases; nothing is emailed
 ```
 
 ## Built so far: the engine
@@ -22,8 +23,20 @@ uv run pytest -q
 | `dlra/promises.py` | Turns a buyer's reply into a promise; relative dates stay unresolved |
 | `dlra/events.py` | Append-only, deduplicated event log with a loop guard |
 | `dlra/engine.py` | Diagnosis in; permitted actions, refusals and human cards out |
+| `dlra/loader.py` | Builds a case from the database; code derives every flag the engine acts on |
+| `dlra/service.py` | Ingestion, deadline effects, human decisions, and waking the engine |
+| `dlra/outbox.py` | Re-authorises every message at send time |
+| `dlra/scheduler.py` | Emits deadline events; it has no way to send mail itself |
+| `dlra/mailer.py` | SMTP; refuses non-`.example` recipients by default |
+| `dlra/api.py`, `dlra/mcp_server.py` | Supplier API and MCP tools for cards and cases |
 
-The diagnosis, extraction and drafting layer is not built yet. Tests supply the diagnosis directly.
+The diagnosis, extraction and drafting layer and the web pages are not built yet. The demo replay uses
+scripted diagnoses and already-extracted evidence, and drafts are placeholders.
+
+## MCP
+
+`.mcp.json` registers the tools for Claude Code. They call a running API with `OPS_TOKEN`. With no token set,
+the API refuses every request.
 
 Where the conduct rules would block a reply that resolves the thing that caused them, the engine allows
 only that reply: a bank-reference request after a reported payment, and dispute messages during a dispute.

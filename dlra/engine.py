@@ -45,7 +45,6 @@ def stub_draft(intent: str, bundle: CaseBundle, facts: dict) -> tuple[str, str, 
 PROBES = {
     State.PAPERWORK: (A.ESCALATION,),
     State.DISPUTE: (A.PAYMENT_REMINDER,),
-    State.CASH_CONSTRAINT: (A.INCREASE_CONTACT,),
     State.PROMISE_ACTIVE: (A.ESCALATION,),
     State.PROMISE_BROKEN: (A.HARSHER_MESSAGE,),
     State.PAID_UNMATCHED: (A.PAYMENT_REMINDER,),
@@ -252,8 +251,10 @@ class _Run:
             return
         self.result.promise = promise
         # the plan exactly as asked, so an out-of-policy condition is refused on the record
-        self.attempt(A.PROPOSE_PLAN, outcome=Outcome.PROPOSE, plan=promise)
-        if promise.concessions:
+        asked_for = [c for c in promise.concessions if c not in self.facts.approved_concessions]
+        self.attempt(A.PROPOSE_PLAN, outcome=Outcome.PROPOSE,
+                     plan=promise.model_copy(update={"concessions": asked_for}))
+        if asked_for:
             self.attempt(A.DECLINE_CONDITION, intent="decline_condition_neutral")
         if promise.status in (PromiseStatus.PROPOSED, PromiseStatus.AWAITING_CONFIRMATION):
             asked = self.attempt(
@@ -418,6 +419,18 @@ def decide(
     return result
 
 
+def context_for(
+    bundle: CaseBundle, diagnosis: Diagnosis, state: State, policy: Policy, now: datetime,
+    contact_id: str | None = None,
+) -> PolicyContext:
+    """The policy context as of now, for checks outside a run (send time, promise activation)."""
+    run = _Run(bundle, diagnosis, policy, now, stub_draft)
+    run.result.state = state
+    if contact_id is not None:  # check the address the message was actually written to
+        run.contact = next((c for c in bundle.contacts if c.id == contact_id), None)
+    return run.context()
+
+
 # --- persistence -------------------------------------------------------------
 
 
@@ -455,10 +468,17 @@ def run_case(
 
 
 def _open_card(conn: sqlite3.Connection, case_id: str, card: Card) -> str:
+    # reuse the open card, or the identical one a human already decided: a re-run must not ask twice
     row = conn.execute(
-        "SELECT id FROM cards WHERE case_id = ? AND kind = ? AND status = 'open'", (case_id, card.kind)
+        "SELECT id FROM cards WHERE case_id = ? AND kind = ? AND (status = 'open' OR reason = ?) "
+        "ORDER BY status = 'open' DESC", (case_id, card.kind, card.reason)
     ).fetchone()
-    if row:
+    if row:  # an open card shows the latest picture; a decided one is history and stays as it was
+        conn.execute(
+            "UPDATE cards SET reason = ?, rule_id = ?, evidence_ids = ?, payload = ? "
+            "WHERE id = ? AND status = 'open'",
+            (card.reason, card.rule_id, json.dumps(card.evidence_ids), json.dumps(card.payload), row["id"]),
+        )
         return row["id"]
     card_id = new_id("CARD")
     conn.execute(
@@ -531,9 +551,9 @@ def persist(conn: sqlite3.Connection, case_id: str, trigger_event_id: str, resul
                 )
 
         conn.execute(
-            "UPDATE cases SET state = ?, diagnosis_confidence = ?, under_review = ?, safe_pause_until = ?, "
-            "updated_at = ? WHERE id = ?",
-            (result.state, result.diagnosis.confidence, int(result.under_review),
+            "UPDATE cases SET state = ?, diagnosis = ?, diagnosis_confidence = ?, under_review = ?, "
+            "safe_pause_until = ?, updated_at = ? WHERE id = ?",
+            (result.state, result.diagnosis.model_dump_json(), result.diagnosis.confidence, int(result.under_review),
              utc_iso(result.safe_pause_until) if result.safe_pause_until else None, utc_iso(now), case_id),
         )
         events.append(

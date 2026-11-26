@@ -4,7 +4,7 @@ import pytest
 from conftest import NOW, contact, evidence
 
 from dlra.models import Action as A
-from dlra.models import Allocation, Fallback, Installment, Promise, State
+from dlra.models import Allocation, Fallback, Installment, Promise, PromiseStatus, State
 from dlra.policy import ProposedAction, authorise, lint_leak, lint_tone
 from dlra.rules import HARD_RULES, RULE_TABLE, rule_text
 
@@ -29,7 +29,7 @@ def plan(*parts, concessions=()):
 
 def active_promise():
     p = plan((100, date(2026, 12, 1)))
-    return p.model_copy(update={"status": "active", "buyer_confirmed": True, "policy_ok": True})
+    return p.model_copy(update={"status": PromiseStatus.ACTIVE, "buyer_confirmed": True, "policy_ok": True})
 
 
 @pytest.mark.parametrize(

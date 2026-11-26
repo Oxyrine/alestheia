@@ -11,6 +11,9 @@ BEGIN SELECT RAISE(ABORT, 'events are immutable'); END;
 CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events
 BEGIN SELECT RAISE(ABORT, 'events are immutable'); END;
 
+-- Events the dispatcher has handled. Kept apart because events themselves never change.
+CREATE TABLE IF NOT EXISTS processed_events (event_id TEXT PRIMARY KEY REFERENCES events(id));
+
 CREATE TABLE IF NOT EXISTS customers (
   id TEXT PRIMARY KEY, canonical_name TEXT NOT NULL, gstin TEXT, entity_type TEXT, aliases TEXT DEFAULT '[]',
   tds_rate_bp INTEGER CHECK (tds_rate_bp IN (0, 10, 100, 200, 1000)),
@@ -35,7 +38,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 CREATE TABLE IF NOT EXISTS cases (
   id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL UNIQUE REFERENCES invoices(id), state TEXT,
   diagnosis_confidence REAL, under_review INTEGER NOT NULL DEFAULT 0, human_pause INTEGER NOT NULL DEFAULT 0,
-  safe_pause_until TEXT, running INTEGER NOT NULL DEFAULT 0, rerun_pending INTEGER NOT NULL DEFAULT 0,
+  safe_pause_until TEXT, diagnosis TEXT, running INTEGER NOT NULL DEFAULT 0, rerun_pending INTEGER NOT NULL DEFAULT 0,
   updated_at TEXT
 );
 
@@ -81,6 +84,7 @@ CREATE TABLE IF NOT EXISTS allocations (
 
 CREATE TABLE IF NOT EXISTS promises (
   id TEXT PRIMARY KEY, case_id TEXT NOT NULL, data TEXT NOT NULL,
+  baseline_paise INTEGER NOT NULL DEFAULT 0,   -- confirmed cash already received when it became active
   status TEXT NOT NULL
     CHECK (status IN ('proposed', 'awaiting_confirmation', 'active', 'broken', 'fulfilled', 'declined'))
 );

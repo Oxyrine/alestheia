@@ -234,6 +234,7 @@ class CaseFacts(_Model):
     tds_evidenced_paise: int = 0            # for this case's invoice
     allocated_payment_ids: list[str] = []
     promise_extract: dict | None = None     # grounded promise_proposal, shape: promises.build_promise
+    approved_concessions: list[str] = []    # only ever from a supplier's human decision
 
 
 class CaseBundle(_Model):
