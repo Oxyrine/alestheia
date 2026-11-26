@@ -213,6 +213,29 @@ class Payment(_Model):
     source: str = "bank"
 
 
+class CaseFacts(_Model):
+    """Flags and amounts derived by code from evidence, messages and payments (never by the LLM)."""
+    payment_reported: bool = False          # live report: not expired, not yet reconciled
+    dispute_open: bool = False
+    human_pause: bool = False
+    human_reopen: bool = False
+    sent_this_week: int = 0
+    neutral_questions_sent: int = 0
+    sent_intents: list[str] = []            # intents already queued or sent, so re-runs don't repeat them
+    payment_report_expired: bool = False    # and the supplier has not decided yet
+    bank_ref_asks_since_expiry: int = 0
+    deadline_missed: bool = False           # a deadline fired and reconciliation found no payment
+    distress_signal: bool = False
+    correction_on_file: bool = False        # the missing item (e.g. the PO) is in our own records
+    reported_tds_paise: int | None = None
+    reported_invoice_numbers: list[str] = []
+    remittance_invoice_numbers: list[str] = []
+    confirmed_paid: dict[str, int] = {}     # invoice id -> confirmed cash
+    tds_evidenced_paise: int = 0            # for this case's invoice
+    allocated_payment_ids: list[str] = []
+    promise_extract: dict | None = None     # grounded promise_proposal, shape: promises.build_promise
+
+
 class CaseBundle(_Model):
     """One case as the engine sees it. Eval case JSON uses this same shape.
 
@@ -228,6 +251,7 @@ class CaseBundle(_Model):
     payments: list[Payment] = []
     promise: Promise | None = None
     state: State | None = None         # previous state, None for a new case
+    facts: CaseFacts = CaseFacts()
 
 
 def fmt_inr(paise: int) -> str:
