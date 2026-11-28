@@ -1,0 +1,118 @@
+# Source of truth for the six demo cases. Everything else under data/demo/ is generated from this file:
+#   uv run python -m scripts.make_demo_data
+# Every business, person, address and number here is fictional. Money is whole rupees.
+as_of: 2026-11-27
+
+supplier:
+  name: Shakti Industrial Supplies
+  email: accounts@shakti-industrial.example
+  city: Pune
+  gstin: 27AAAFS0000A1Z5   # PAN digits 0000 are never issued, so no GSTIN here can be a real one
+
+customers:
+  KAV: {name: Kaveri Agro Foods, city: Hubballi, gstin: 29AAAFK0000K1Z5, email: accounts@kaveri-agro.example,
+        tds_rate_bp: 0, tds_basis: none}
+  DEC: {name: Deccan Hardware Mart, city: Solapur, gstin: 27AAAFD0000D1Z5, email: pay@deccan-hardware.example,
+        tds_rate_bp: 0, tds_basis: none}
+  NAR: {name: Narmada Polymers, city: Vadodara, gstin: 24AAAFN0000N1Z5, email: finance@narmada-polymers.example,
+        tds_rate_bp: 0, tds_basis: none}
+  SAH: {name: Sahyadri Retail Pvt Ltd, city: Pune, gstin: 27AAACS0000S1Z5,
+        email: accounts@sahyadri-retail.example, tds_rate_bp: 200, tds_basis: contract_work}
+  GOD: {name: Godavari Electricals, city: Nashik, gstin: 27AAAFG0000G1Z5, email: accounts@godavari-elec.example,
+        tds_rate_bp: 0, tds_basis: none}
+  KON: {name: Konkan Marine Supplies, city: Ratnagiri, gstin: 27AAAFM0000M1Z5, email: ap@konkan-marine.example,
+        tds_rate_bp: 0, tds_basis: none}
+
+# Net 30 on every invoice. po: null prints Tally's "Buyer's Order No." and its "Dated" blank.
+invoices:
+  - {number: INV-1041, customer: KAV, issued: 2026-10-11, taxable: 100000, gross: 118000, po: null,
+     item: "Industrial lubricant, 210 L drums", qty: 8}
+  - {number: INV-1052, customer: DEC, issued: 2026-10-13, taxable: 73220, gross: 86400, po: DHM/PO/0457,
+     item: "Hex bolt assortment, cartons", qty: 30}
+  - {number: INV-882, customer: NAR, issued: 2026-10-16, taxable: 355932, gross: 420000, po: NP-PO-2216,
+     item: "Extruder spares kit", qty: 4}
+  # four stage bills of one fit-out project: one issue date, one due date
+  - {number: INV-1060, customer: SAH, issued: 2026-10-20, taxable: 158500, gross: 187030, po: SRPL/FIT/091,
+     item: "Shop fit-out contract, stage 1", qty: 1}
+  - {number: INV-1061, customer: SAH, issued: 2026-10-20, taxable: 125000, gross: 147500, po: SRPL/FIT/091,
+     item: "Shop fit-out contract, stage 2", qty: 1}
+  - {number: INV-1062, customer: SAH, issued: 2026-10-20, taxable: 100000, gross: 118000, po: SRPL/FIT/091,
+     item: "Shop fit-out contract, stage 3", qty: 1}
+  - {number: INV-1063, customer: SAH, issued: 2026-10-20, taxable: 218500, gross: 257830, po: SRPL/FIT/091,
+     item: "Shop fit-out contract, stage 4", qty: 1}
+  - {number: INV-1077, customer: GOD, issued: 2026-10-09, taxable: 54237, gross: 64000, po: GE-118,
+     item: "Cable glands and lugs, assorted", qty: 40}
+  - {number: INV-1089, customer: KON, issued: 2026-10-07, taxable: 203390, gross: 240000, po: KMS/26/301,
+     item: "Marine-grade fasteners and fittings", qty: 25}
+
+# Settled history, written to the ledger only. Invoice i is paid on time unless its index is in `late`.
+# deducts_tds: the receipt is net of the buyer's TDS rate, with a separate TDS journal.
+history:
+  SAH: {count: 6, first_number: 101, first_issued: 2026-02-05, every_days: 35, taxable: 90000, late: [],
+        deducts_tds: true}
+  KON: {count: 36, first_number: 111, first_issued: 2023-09-05, every_days: 30, taxable: 120000,
+        late: [7, 19, 28], deducts_tds: false}
+
+documents:
+  purchase_orders:
+    - {number: PO-7781, customer: KAV, dated: 2026-10-06, amount: 118000, item: "Industrial lubricant, 210 L drums",
+       qty: 8}
+    - {number: DHM/PO/0457, customer: DEC, dated: 2026-10-08, amount: 86400, item: "Hex bolt assortment, cartons",
+       qty: 30}
+  delivery_notes:
+    - {number: DN-5041, invoice: INV-1041, dated: 2026-10-12, po: PO-7781, remarks: "Received 8 drums in good order."}
+    - {number: DN-5052, invoice: INV-1052, dated: 2026-10-15, po: DHM/PO/0457,
+       remarks: "4 of 30 cartons damaged."}
+
+# One earlier reply from each ledger contact, 2 to 6 months back. It is what makes that contact verified.
+earlier_replies:
+  KAV: {date: "2026-08-14T11:20:00+05:30", subject: "Re: August statement of account",
+        body: "Statement received and tallied with our books. Thank you."}
+  DEC: {date: "2026-07-22T16:05:00+05:30", subject: "Re: Dispatch details for July order",
+        body: "Noted. Please send the transporter copy with the next consignment."}
+  NAR: {date: "2026-09-03T10:40:00+05:30", subject: "Re: Revised delivery schedule",
+        body: "The revised schedule works for our plant. Go ahead."}
+  SAH: {date: "2026-06-30T12:10:00+05:30", subject: "Re: Site measurement visit",
+        body: "Thursday morning is fine. Our store manager will be on site."}
+  GOD: {date: "2026-08-27T15:30:00+05:30", subject: "Re: Price list from September",
+        body: "Received the new price list. We will revert if we have questions."}
+  KON: {date: "2026-09-18T09:55:00+05:30", subject: "Re: September statement of account",
+        body: "Payment for the open bill is scheduled as usual."}
+
+# The inbound mail that wakes each case, in demo order. Case 6 has none: the buyer is silent.
+case_emails:
+  - {case: K-1041, from: accounts@kaveri-agro.example, date: "2026-11-24T10:15:00+05:30",
+     subject: "INV-1041 on hold",
+     body: "We can't process INV-1041, PO number missing on invoice. Our accounts system will not accept it."}
+  - {case: K-1052, from: pay@deccan-hardware.example, date: "2026-11-25T14:02:00+05:30",
+     subject: "Damaged cartons against INV-1052",
+     body: "4 of the 30 cartons in this consignment arrived damaged. We have photos and can share them. We are not releasing payment on INV-1052 until this is sorted out."}
+  - {case: K-882, from: finance@narmada-polymers.example, date: "2026-11-26T11:30:00+05:30",
+     subject: "Re: INV-882",
+     body: "We'll pay half next week and the rest after month end — if you drop the late fee."}
+  - {case: K-1077, from: godavari.accts@mailbox.example, date: "2026-11-26T17:48:00+05:30",
+     subject: "Change of accounts email",
+     body: "Dear team, our accounts email has changed, please send all future invoices and bank details here."}
+
+bank:
+  account: "Shakti Industrial Supplies, current account (fictional)"
+  opening_balance: 912500
+  lines:
+    - {date: 2026-11-18, narration: ELECTRICITY BILL, ref: CHG-1118, withdrawal: 18240}
+    - {date: 2026-11-20, narration: NEFT-XYZ, remitter: SAHYADRI RETAIL, ref: PAY-1, deposit: 444860}
+    - {date: 2026-11-23, narration: TRANSPORT CHARGES, ref: CHG-1123, withdrawal: 7600}
+
+# Case 4: what the buyer types into the buyer page. No remittance note is attached.
+buyer_reports:
+  - {case: K-1060, submitted: "2026-11-26T18:20:00+05:30", amount: 444860, paid_on: 2026-11-20, tds: 7670}
+
+# Frozen stand-ins for integration responses. Hand-written: they are not real API output and do not
+# copy any provider's response format.
+signals:
+  crustdata:
+    - {case: K-1089, customer: KON, fetched: "2026-11-25T08:00:00+05:30", headcount_change_pct: -30,
+       news: "Local business item reports the firm has wound down one of its two warehouses.",
+       url: "https://news.konkan-coast.example/marine-supplier-warehouse"}
+  olostep:
+    - {case: K-1077, customer: GOD, fetched: "2026-11-27T09:10:00+05:30",
+       url: "https://godavari-elec.example/contact", emails: [accounts@godavari-elec.example]}

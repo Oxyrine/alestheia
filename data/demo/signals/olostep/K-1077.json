@@ -1,0 +1,10 @@
+{
+  "synthetic_fixture": true,
+  "case": "K-1077",
+  "customer": "GOD",
+  "fetched": "2026-11-27T09:10:00+05:30",
+  "url": "https://godavari-elec.example/contact",
+  "emails": [
+    "accounts@godavari-elec.example"
+  ]
+}

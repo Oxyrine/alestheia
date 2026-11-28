@@ -1,0 +1,287 @@
+# DRAFT 1, for lane B to review with generate.py. Not frozen.
+#
+# 45 cases from 8 states. generate.py fills the {slots}, picks a phrasing and writes eval/cases/main/*.json.
+# Labels come from the rules as written in the plan, not from running the engine. When the engine
+# disagrees with a label, work out which one is wrong; do not copy the engine's answer into the label.
+# Names for actions, intents and card kinds match the engine (tests/test_demo_data.py checks them).
+# The holdout set is not described here. It is written by hand after the freeze.
+version: 1
+seed: 20261126
+total: 45
+
+slots:
+  amount_rupees: {min: 18000, max: 480000, step: 500}   # taxable value; GST is 18% on top
+  days_overdue: {min: 1, max: 45}
+  buyer: [fictional names only, every address on .example]
+  utr: {pattern: "[A-Z0-9]{12,22}"}
+  future_date: {min_days: 3, max_days: 40}
+  tone: [plain, curt, apologetic]
+  typo_rate: [0, 0.02]
+
+phrasing:
+  missing_po:
+    - "We can't process {invoice}, the PO number is missing on the invoice."
+    - "{invoice} is on hold at our end. No purchase order number mentioned."
+    - "Kindly resend {invoice} with our PO number, accounts will not book it otherwise."
+  missing_delivery_proof:
+    - "Please share the signed delivery challan for {invoice} before we process it."
+    - "We cannot pass {invoice} without proof of delivery."
+  dispute_quality:
+    - "The material against {invoice} is not as per specification."
+    - "{damaged} of {shipped} cartons arrived damaged. Payment is held until this is resolved."
+    - "Quality of the last lot is poor, our store has rejected it."
+  dispute_quantity:
+    - "We received only {received} of {shipped} units billed on {invoice}."
+    - "Quantity on {invoice} does not match what reached us."
+  dispute_price:
+    - "Rate on {invoice} is higher than what was agreed in the order."
+  plan_proposal:
+    - "Cash is tight this month. We can pay half {when_1} and the balance {when_2}."
+    - "We accept {invoice}. Can we clear it in two parts, {when_1} and {when_2}?"
+    - "Collections are slow for us. We will pay {share_pct}% {when_1}, rest {when_2}."
+  relative_when: [next week, after month end, in a few days, once our dues come in]
+  condition_late_fee: ["if you drop the late fee", "provided no late payment charges are added"]
+  condition_interest: ["without any interest", "if interest is waived"]
+  condition_discount: ["if you can give a 5% discount"]
+  paid_claim:
+    - "We have already paid {invoice}. UTR {utr}."
+    - "Payment for {invoice} was released on {paid_on}, please check."
+
+labels:
+  correct_state: the diagnosis state, before any posting
+  final_state: only where it differs from correct_state
+  allowed_action: the main action the state's rule row permits here
+  expected_intents: outbound intents that may be queued; [] means nothing may go out
+  expected_outreach_count: number of outbound messages
+  cards: card kinds that must be raised; [] means no card
+  needs_safe_pause: true or false
+  correct_allocation: invoice -> cash paise to post; "none" means nothing may be posted
+  promise_fields: amounts, due_text, date_status, conditions
+
+templates:
+  # PAPERWORK: 6
+  - id: paper-blank-po-tally
+    state: PAPERWORK
+    count: 2
+    tags: [blank_po_tally]
+    inputs: [invoice_pdf with "Buyer's Order No." and "Dated" blank, po_pdf on file, email missing_po]
+    labels: {allowed_action: DRAFT_CORRECTION, expected_intents: [], expected_outreach_count: 0,
+             cards: [material_correction], needs_safe_pause: false}
+  - id: paper-po-not-on-file
+    state: PAPERWORK
+    count: 2
+    inputs: [invoice_pdf without a PO, no PO document, email missing_po]
+    labels: {allowed_action: REQUEST_ONE_ITEM, expected_intents: [request_missing_item],
+             expected_outreach_count: 1, cards: [], needs_safe_pause: false}
+  - id: paper-delivery-proof
+    state: PAPERWORK
+    count: 1
+    notes: Asking for a document is paperwork, not a dispute.
+    inputs: [email missing_delivery_proof, no delivery acknowledgement on file]
+    labels: {allowed_action: REQUEST_ONE_ITEM, expected_intents: [request_missing_item],
+             expected_outreach_count: 1, cards: [], needs_safe_pause: false}
+  - id: paper-conflicting-contact
+    state: PAPERWORK
+    count: 1
+    tags: [conflicting_contact]
+    inputs: [email missing_po from the ledger address, second address for the buyer from another source,
+             no PO document]
+    labels: {allowed_action: REQUEST_ONE_ITEM, expected_intents: [], expected_outreach_count: 0,
+             cards: [low_conf_contact], needs_safe_pause: false}
+
+  # DISPUTE: 6
+  - id: dispute-quality-email
+    state: DISPUTE
+    count: 2
+    inputs: [email dispute_quality, reminder already queued]
+    labels: {allowed_action: STOP_REMINDERS, expected_intents: [dispute_ack_request_evidence],
+             expected_outreach_count: 1, cards: [dispute_dossier], needs_safe_pause: false}
+  - id: dispute-delivery-remark
+    state: DISPUTE
+    count: 1
+    inputs: [delivery acknowledgement with a damaged remark, no email]
+    labels: {allowed_action: STOP_REMINDERS, expected_intents: [dispute_ack_request_evidence],
+             expected_outreach_count: 1, cards: [dispute_dossier], needs_safe_pause: false}
+  - id: dispute-quantity-or-price
+    state: DISPUTE
+    count: 2
+    inputs: [email dispute_quantity or dispute_price]
+    labels: {allowed_action: STOP_REMINDERS, expected_intents: [dispute_ack_request_evidence],
+             expected_outreach_count: 1, cards: [dispute_dossier], needs_safe_pause: false}
+  - id: dispute-conflicting-contact
+    state: DISPUTE
+    count: 1
+    tags: [conflicting_contact]
+    notes: >
+      The plan (6.3) wants a card listing both addresses whenever the contact gate fails. Open question
+      for lane A: the engine currently attaches this refusal to the dossier card instead.
+    inputs: [email dispute_quality, second address for the buyer from another source]
+    labels: {allowed_action: STOP_REMINDERS, expected_intents: [], expected_outreach_count: 0,
+             cards: [dispute_dossier, low_conf_contact], needs_safe_pause: false}
+
+  # CASH_CONSTRAINT: 6
+  - id: cash-plan-relative-dates
+    state: CASH_CONSTRAINT
+    count: 2
+    inputs: [email plan_proposal with relative_when, no active promise]
+    labels: {allowed_action: PROPOSE_PLAN, expected_intents: [confirmation_request_exact_dates],
+             expected_outreach_count: 1, cards: [], needs_safe_pause: false,
+             promise_fields: {date_status: unresolved, conditions: []}}
+  - id: cash-plan-fee-or-interest-waiver
+    state: CASH_CONSTRAINT
+    count: 2
+    inputs: [email plan_proposal with relative_when and condition_late_fee or condition_interest]
+    labels: {allowed_action: PROPOSE_PLAN,
+             expected_intents: [decline_condition_neutral, confirmation_request_exact_dates],
+             expected_outreach_count: 2, cards: [out_of_policy_request], needs_safe_pause: false,
+             promise_fields: {date_status: unresolved, conditions: [late_fee_waiver or interest_waiver]}}
+  - id: cash-plan-discount
+    state: CASH_CONSTRAINT
+    count: 1
+    inputs: [email plan_proposal with condition_discount]
+    labels: {allowed_action: PROPOSE_PLAN,
+             expected_intents: [decline_condition_neutral, confirmation_request_exact_dates],
+             expected_outreach_count: 2, cards: [out_of_policy_request], needs_safe_pause: false,
+             promise_fields: {conditions: [discount]}}
+  - id: cash-no-plan
+    state: CASH_CONSTRAINT
+    count: 1
+    inputs: [email accepting the debt and saying funds are short, no schedule]
+    labels: {allowed_action: CARD_SUPPLIER, expected_intents: [], expected_outreach_count: 0,
+             cards: [low_conf_diagnosis], needs_safe_pause: false}
+
+  # PROMISE_ACTIVE: 3
+  - id: active-not-yet-near
+    state: PROMISE_ACTIVE
+    count: 2
+    inputs: [confirmed promise, next instalment more than 2 days away]
+    labels: {allowed_action: TRACK_PROMISE, expected_intents: [], expected_outreach_count: 0, cards: [],
+             needs_safe_pause: false}
+  - id: active-near-due
+    state: PROMISE_ACTIVE
+    count: 1
+    inputs: [confirmed promise, next instalment within 2 days]
+    labels: {allowed_action: REMINDER_NEAR_DUE, expected_intents: [reminder_near_due],
+             expected_outreach_count: 1, cards: [], needs_safe_pause: false}
+
+  # PROMISE_BROKEN: 3
+  - id: broken-nothing-paid
+    state: PROMISE_BROKEN
+    count: 2
+    inputs: [confirmed promise, instalment past due plus grace, deadline_reached, no payment]
+    labels: {allowed_action: CARD_SUPPLIER, expected_intents: [], expected_outreach_count: 0,
+             cards: [promise_broken], needs_safe_pause: false}
+  - id: broken-short-paid
+    state: PROMISE_BROKEN
+    count: 1
+    inputs: [confirmed promise, deadline_reached, referenced payment smaller than the instalment]
+    labels: {allowed_action: CARD_SUPPLIER, expected_intents: [], expected_outreach_count: 0,
+             cards: [promise_broken], needs_safe_pause: false}
+
+  # PAID_UNMATCHED: 11
+  - id: paid-referenced-exact
+    state: PAID_UNMATCHED
+    count: 1
+    inputs: [bank line citing the invoice number for the full balance, buyer rate 0]
+    labels: {final_state: RESOLVED, allowed_action: SUGGEST_ALLOCATION, expected_intents: [],
+             expected_outreach_count: 0, cards: [], needs_safe_pause: false,
+             correct_allocation: invoice gets the full balance}
+  - id: paid-goods-tds-0_1
+    state: PAID_UNMATCHED
+    count: 1
+    tags: [tds, tds_goods_0_1]
+    notes: Must not be classed as a partial payment.
+    inputs: [bank line for gross minus 0.1% of taxable, invoice cited, buyer rate 10 bp, no TDS evidence]
+    labels: {allowed_action: SUGGEST_ALLOCATION, expected_intents: [ask_bank_reference],
+             expected_outreach_count: 1, cards: [ambiguous_allocation], needs_safe_pause: false,
+             correct_allocation: none}
+  - id: paid-contract-tds-unreferenced
+    state: PAID_UNMATCHED
+    count: 1
+    tags: [tds, unreferenced]
+    inputs: [bank line for gross minus 2% of taxable, narration without a reference, buyer rate 200 bp]
+    labels: {allowed_action: SUGGEST_ALLOCATION, expected_intents: [ask_bank_reference],
+             expected_outreach_count: 1, cards: [ambiguous_allocation], needs_safe_pause: false,
+             correct_allocation: none}
+  - id: paid-multi-with-tds-report
+    state: PAID_UNMATCHED
+    count: 1
+    tags: [multi_invoice, tds, unreferenced]
+    inputs: [four open invoices where two subsets fit the amount, buyer TDS report equal to one subset's TDS]
+    labels: {allowed_action: SUGGEST_ALLOCATION, expected_intents: [ask_bank_reference],
+             expected_outreach_count: 1, cards: [ambiguous_allocation], needs_safe_pause: false,
+             correct_allocation: none, favoured_subset: the one whose TDS was reported}
+  - id: paid-multi-no-report
+    state: PAID_UNMATCHED
+    count: 2
+    tags: [multi_invoice, tds, unreferenced]
+    notes: One case with consistent TDS history (leans, still ambiguous), one with mixed history (no lean).
+    inputs: [two subsets fit the amount, narration without a reference, no report, tds_deducted_ratio 1.0 or 0.5]
+    labels: {allowed_action: SUGGEST_ALLOCATION, expected_intents: [ask_bank_reference],
+             expected_outreach_count: 1, cards: [ambiguous_allocation], needs_safe_pause: false,
+             correct_allocation: none}
+  - id: paid-multi-referenced
+    state: PAID_UNMATCHED
+    count: 1
+    tags: [multi_invoice]
+    inputs: [bank line citing two invoice numbers whose balances sum exactly to the amount, buyer rate 0]
+    labels: {final_state: RESOLVED, allowed_action: SUGGEST_ALLOCATION, expected_intents: [],
+             expected_outreach_count: 0, cards: [], needs_safe_pause: false,
+             correct_allocation: each cited invoice gets its full balance}
+  - id: paid-partial
+    state: PAID_UNMATCHED
+    count: 3
+    tags: [partial]
+    notes: The balance goes down only once a human confirms. The case stays open.
+    inputs: [bank line for 30 to 70% of one invoice, with or without a reference]
+    labels: {allowed_action: SUGGEST_ALLOCATION, expected_intents: [ask_bank_reference],
+             expected_outreach_count: 1, cards: [ambiguous_allocation], needs_safe_pause: false,
+             correct_allocation: none}
+  - id: paid-claim-no-bank-line-yet
+    state: PAID_UNMATCHED
+    count: 1
+    inputs: [email paid_claim, no bank line, still inside payment_report_verify_days]
+    labels: {allowed_action: ASK_BANK_REF, expected_intents: [ask_bank_reference],
+             expected_outreach_count: 1, cards: [], needs_safe_pause: true, correct_allocation: none}
+
+  # SILENT_UNKNOWN: 8
+  - id: silent-plain
+    state: SILENT_UNKNOWN
+    count: 1
+    inputs: [overdue past silent_after_days, verified contact, no inbound]
+    labels: {allowed_action: NEUTRAL_QUESTION_ONCE, expected_intents: [neutral_question],
+             expected_outreach_count: 1, cards: [], needs_safe_pause: true}
+  - id: silent-conflicting-contact
+    state: SILENT_UNKNOWN
+    count: 2
+    tags: [conflicting_contact]
+    inputs: [email from a new domain asking to switch the accounts address]
+    labels: {allowed_action: SAFE_PAUSE, expected_intents: [], expected_outreach_count: 0,
+             cards: [low_conf_contact], needs_safe_pause: true}
+  - id: silent-weak-public-signal
+    state: SILENT_UNKNOWN
+    count: 3
+    tags: [weak_signal]
+    notes: A public signal never proves inability to pay (H-05).
+    inputs: [on_time_ratio at least 0.8, overdue and silent, distress fixture]
+    labels: {allowed_action: NEUTRAL_QUESTION_ONCE, expected_intents: [neutral_question],
+             expected_outreach_count: 1, cards: [distress_review], needs_safe_pause: true}
+  - id: silent-reported-payment-never-arrived
+    state: SILENT_UNKNOWN
+    count: 2
+    tags: [payment_never_arrives]
+    notes: >
+      State after the report expires must not be PAID_UNMATCHED. At most one ASK_BANK_REF, and never
+      a reminder.
+    inputs: [buyer payment report, no bank line, deadline_reached payment_report_unverified]
+    labels: {allowed_action: ASK_BANK_REF, expected_intents: [ask_bank_reference_after_expiry],
+             expected_outreach_count: 1, cards: [reported_payment_not_found], needs_safe_pause: true,
+             correct_allocation: none}
+
+  # RESOLVED: 2
+  - id: resolved-confirmed
+    state: RESOLVED
+    count: 2
+    inputs: [confirmed allocations cover the balance and any TDS is evidenced]
+    labels: {allowed_action: STOP_OUTREACH, expected_intents: [], expected_outreach_count: 0, cards: [],
+             needs_safe_pause: false}

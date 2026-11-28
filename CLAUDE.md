@@ -8,6 +8,7 @@ uv run pytest -q
 uvx ruff check dlra tests
 uv run python -m dlra.cli case.json     # {"bundle": CaseBundle, "diagnosis": Diagnosis, "now": ISO+offset}
 uv run python -m scripts.replay_demo    # six demo cases end to end (scripted diagnosis, no mail)
+uv run python -m scripts.make_demo_data # rebuild data/demo/ from data/demo/world.yaml
 ```
 
 ## Lanes
@@ -27,7 +28,11 @@ uv run python -m scripts.replay_demo    # six demo cases end to end (scripted di
   `dlra/loader.py`. Never store an ungrounded extraction under those field names.
 - Web: include `api.build_router(db_path, deps)`; start jobs with `scheduler.start(db_path, deps, mailer.send)`.
   Supplier decisions go through `service.decide_card`.
-- `scripts/demo_world.py` is a stand-in for `data/demo/` and `diagnose.py`.
+- `scripts/demo_world.py` is a stand-in for `diagnose.py` and for reading `data/demo/` (nothing parses those
+  files yet). `tests/test_demo_data.py` keeps the two in agreement.
+- Demo sources: edit `data/demo/world.yaml`, rerun the generator, commit the output. Never edit generated files.
+- `eval/scenario_spec.yaml` is draft 1, for B to review. The holdout set is written by hand after the freeze,
+  by a person who wrote neither the rules nor the prompts.
 
 ## Invariants
 

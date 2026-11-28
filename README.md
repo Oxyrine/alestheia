@@ -30,6 +30,18 @@ uv run python -m scripts.replay_demo     # the six demo cases; nothing is emaile
 | `dlra/mailer.py` | SMTP; refuses non-`.example` recipients by default |
 | `dlra/api.py`, `dlra/mcp_server.py` | Supplier API and MCP tools for cards and cases |
 
+## Synthetic demo sources
+
+`data/demo/` holds what a small supplier would actually have for the six cases: a Tally-style ledger export,
+a bank statement, invoice, purchase order and delivery PDFs, `.eml` files, one buyer payment report, and two
+hand-written stand-ins for integration responses. All of it is generated from `data/demo/world.yaml`:
+
+```
+uv run python -m scripts.make_demo_data
+```
+
+The engine does not parse these files yet. The replay below still uses `scripts/demo_world.py`.
+
 The diagnosis, extraction and drafting layer and the web pages are not built yet. The demo replay uses
 scripted diagnoses and already-extracted evidence, and drafts are placeholders.
 

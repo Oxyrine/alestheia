@@ -1,0 +1,11 @@
+From: accounts@kaveri-agro.example
+To: accounts@shakti-industrial.example
+Subject: INV-1041 on hold
+Date: Tue, 24 Nov 2026 10:15:00 +0530
+Message-ID: <K-1041@kaveri-agro.example>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+We can't process INV-1041, PO number missing on invoice. Our accounts system =
+will not accept it.

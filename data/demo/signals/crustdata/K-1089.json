@@ -1,0 +1,9 @@
+{
+  "synthetic_fixture": true,
+  "case": "K-1089",
+  "customer": "KON",
+  "fetched": "2026-11-25T08:00:00+05:30",
+  "headcount_change_pct": -30,
+  "news": "Local business item reports the firm has wound down one of its two warehouses.",
+  "url": "https://news.konkan-coast.example/marine-supplier-warehouse"
+}
